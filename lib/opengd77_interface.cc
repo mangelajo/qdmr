@@ -484,20 +484,37 @@ OpenGD77Interface::readEEPROM(uint32_t addr, uint8_t *data, uint16_t len, const 
   } else if (0 == retlen) {
     errMsg(err) << "Cannot read from serial port: Device returned empty message.";
     return false;
+  } else if (retlen < (int)(sizeof(resp.type) + sizeof(resp.length))) {
+    errMsg(err) << "Cannot read from device: Short header (" << retlen << " of "
+                << (int)(sizeof(resp.type) + sizeof(resp.length)) << " bytes) at EEPROM addr 0x"
+                << QString::number(addr, 16) << ".";
+    return false;
   }
 
   if ('R' != resp.type) {
-    errMsg(err) << "Cannot read from device: Device returned error '" << resp.type << "'.";
+    errMsg(err) << "Cannot read from device: Device returned error '" << resp.type
+                << "' (0x" << QString::number((uint8_t)resp.type, 16) << ") at EEPROM addr 0x"
+                << QString::number(addr, 16) << ".";
     return false;
   }
 
-  if (qFromBigEndian(req.length) != qFromBigEndian(resp.length)) {
-    errMsg(err) << "Cannot read from device: Device returned invalid length " <<
-                qFromBigEndian(resp.length) << ".";
+  uint16_t reqLen = qFromBigEndian(req.length), respLen = qFromBigEndian(resp.length);
+  if (reqLen != respLen) {
+    errMsg(err) << "Cannot read from device: Device returned invalid length "
+                << respLen << " (expected " << reqLen << ") at EEPROM addr 0x"
+                << QString::number(addr, 16) << ".";
     return false;
   }
 
-  memcpy(data, resp.data, qFromBigEndian(resp.length));
+  int expected = 3 /*type+length*/ + respLen;
+  if (retlen < expected) {
+    errMsg(err) << "Cannot read from device: Short payload (" << retlen
+                << " of " << expected << " bytes) at EEPROM addr 0x"
+                << QString::number(addr, 16) << ".";
+    return false;
+  }
+
+  memcpy(data, resp.data, respLen);
   return true;
 }
 
@@ -570,20 +587,37 @@ OpenGD77Interface::readFlash(uint32_t addr, uint8_t *data, uint16_t len, const E
   } else if (0 == retlen) {
     errMsg(err) << "Cannot read from serial port: Device returned empty message.";
     return false;
+  } else if (retlen < (int)(sizeof(resp.type) + sizeof(resp.length))) {
+    errMsg(err) << "Cannot read from device: Short header (" << retlen << " of "
+                << (int)(sizeof(resp.type) + sizeof(resp.length)) << " bytes) at FLASH addr 0x"
+                << QString::number(addr, 16) << ".";
+    return false;
   }
 
   if ('R' != resp.type) {
-    errMsg(err) << "Cannot read from device: Device returned error " << resp.type << ".";
+    errMsg(err) << "Cannot read from device: Device returned error '" << resp.type
+                << "' (0x" << QString::number((uint8_t)resp.type, 16) << ") at FLASH addr 0x"
+                << QString::number(addr, 16) << ".";
     return false;
   }
 
-  if (qFromBigEndian(req.length) != qFromBigEndian(resp.length)) {
+  uint16_t reqLen = qFromBigEndian(req.length), respLen = qFromBigEndian(resp.length);
+  if (reqLen != respLen) {
     errMsg(err) << "Cannot read from device: Device returned invalid length "
-                << qFromBigEndian(resp.length) << ".";
+                << respLen << " (expected " << reqLen << ") at FLASH addr 0x"
+                << QString::number(addr, 16) << ".";
     return false;
   }
 
-  memcpy(data, resp.data, qFromBigEndian(resp.length));
+  int expected = 3 /*type+length*/ + respLen;
+  if (retlen < expected) {
+    errMsg(err) << "Cannot read from device: Short payload (" << retlen
+                << " of " << expected << " bytes) at FLASH addr 0x"
+                << QString::number(addr, 16) << ".";
+    return false;
+  }
+
+  memcpy(data, resp.data, respLen);
   return true;
 }
 
